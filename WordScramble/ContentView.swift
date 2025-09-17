@@ -11,6 +11,9 @@ struct ContentView: View {
     @State private var usedWords = [String]()
     @State private var rootWord = ""
     @State private var newWord = ""
+    @State private var score = 0
+    
+    @State private var maxWords = 0
     
     @State private var errorTitle = ""
     @State private var errorMessage = ""
@@ -32,7 +35,25 @@ struct ContentView: View {
                     }
                 }
             }
+            
+            Text("Score: \(score)")
+                .font(.headline)
+                .fontWeight(.bold)
+                .padding()
+            Text("Max possible words: \(maxWords)")
+                .font(.subheadline)
+                .fontWeight(.medium)
+            Spacer()
             .navigationTitle(rootWord)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button {
+                        startGame()
+                    } label: {
+                        Image(systemName: "arrow.clockwise")
+                    }
+                }
+            }
         }
         .onSubmit(addNewWord)
         .onAppear(perform: startGame)
@@ -42,6 +63,14 @@ struct ContentView: View {
     }
     func addNewWord() {
         let answer = newWord.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+        guard answer.count >= 3 else {
+            wordError(title: "Word too short", message: "Words must be at least 3 letters long")
+            return
+        }
+        guard answer.lowercased() != rootWord.lowercased() else {
+            wordError(title: "That's the start word", message: "You cannot use the start word itself.")
+            return
+        }
         
         guard answer.count>0 else { return }
         
@@ -62,16 +91,36 @@ struct ContentView: View {
         
         withAnimation {
             usedWords.insert(answer, at: 0)
+            score += answer.count * 10
         }
         newWord = ""
     }
     
+    func calculateMaxWords(from root: String) {
+        if let startWords = Bundle.main.url(forResource: "english-words", withExtension: "txt") {
+            if let allText = try? String(contentsOf: startWords, encoding: .utf8) {
+                    let allWords = allText.components(separatedBy: "\n")
+                    
+                    let validWords = allWords.filter { word in
+                        word.count >= 3 && isPossible(word: word) && isReal(word: word)
+                    }
+                    
+                    maxWords = validWords.count
+                    for word in validWords {
+                        print(word)
+                    }
+            }
+        }
+    }
+    
     func startGame() {
+        usedWords.removeAll()
         if let startWords = Bundle.main.url(forResource: "start", withExtension: "txt") {
             if let startWords = try? String(contentsOf: startWords, encoding: .utf8) {
                 let allWords = startWords.components(separatedBy: "\n")
                 
                 rootWord = allWords.randomElement() ?? "silkworm"
+                calculateMaxWords(from: rootWord)
                 return
             }
         }
