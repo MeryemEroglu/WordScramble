@@ -16,28 +16,34 @@ struct ContentView: View {
     @State private var maxWords = 0
     @FocusState private var isTextFieldFocused: Bool
     
+    @State private var timeRemaining = 60
+    @State private var timer: Timer?
+    
     @State private var errorTitle = ""
     @State private var errorMessage = ""
     @State private var showingError = false
     
+    @State private var showingGameOver = false
+    
     var body: some View {
         NavigationStack {
-            List {
-                Section {
-                    TextField("Enter your word", text: $newWord)
-                        .textInputAutocapitalization(.never)
-                        .focused($isTextFieldFocused)
-                }
-                Section {
-                    ForEach(usedWords, id: \.self) { word in
-                        HStack {
-                            Image(systemName: "\(word.count).circle")
-                            Text(word)
+            VStack {
+                List {
+                    Section {
+                        TextField("Enter your word", text: $newWord)
+                            .textInputAutocapitalization(.never)
+                            .focused($isTextFieldFocused)
+                    }
+                    Section {
+                        ForEach(usedWords, id: \.self) { word in
+                            HStack {
+                                Image(systemName: "\(word.count).circle")
+                                Text(word)
+                            }
                         }
                     }
                 }
-            }
-            
+
             Text("Score: \(score)")
                 .font(.headline)
                 .fontWeight(.bold)
@@ -46,25 +52,46 @@ struct ContentView: View {
                 .font(.subheadline)
                 .fontWeight(.medium)
             Spacer()
+        }
             .navigationTitle(rootWord)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button {
                         startGame()
                     } label: {
-                        Image(systemName: "arrow.clockwise")
+                        Image(systemName: "arrow.clockwise.circle.fill")
                     }
                 }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Text("\(timeRemaining)")
+                        .font(.headline)
+                        .foregroundColor(timeRemaining > 10 ? .primary : .red)
+                }
             }
+
         }
         .onSubmit(addNewWord)
         .onAppear(perform: startGame)
+        
         .alert(errorTitle, isPresented: $showingError) { } message: {
             Text(errorMessage)
         }
+        
+        .alert("Game Over", isPresented: $showingGameOver) {
+            Button("Play again", action: startGame)
+        } message : {
+            Text("""
+                 Time's up!
+                 Final Score: \(score).
+                 Words Found: \(usedWords.count)
+                 """)
+        }
     }
+    
     func addNewWord() {
         let answer = newWord.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+        guard timeRemaining > 0 else { return }
+        
         guard answer.count >= 3 else {
             wordError(title: "Word too short", message: "Words must be at least 3 letters long")
             return
@@ -118,6 +145,19 @@ struct ContentView: View {
     
     func startGame() {
         usedWords.removeAll()
+        timeRemaining = 60
+        score = 0
+        timer?.invalidate()
+        
+        timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { _ in
+            if timeRemaining > 0 {
+                timeRemaining -= 1
+            } else {
+                timer?.invalidate()
+                showingGameOver = true
+            }
+        }
+        
         if let startWords = Bundle.main.url(forResource: "start", withExtension: "txt") {
             if let startWords = try? String(contentsOf: startWords, encoding: .utf8) {
                 let allWords = startWords.components(separatedBy: "\n")
