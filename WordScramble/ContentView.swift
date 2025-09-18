@@ -14,6 +14,7 @@ struct ContentView: View {
     @State private var score = 0
     
     @State private var maxWords = 0
+    @FocusState private var isTextFieldFocused: Bool
     
     @State private var errorTitle = ""
     @State private var errorMessage = ""
@@ -25,6 +26,7 @@ struct ContentView: View {
                 Section {
                     TextField("Enter your word", text: $newWord)
                         .textInputAutocapitalization(.never)
+                        .focused($isTextFieldFocused)
                 }
                 Section {
                     ForEach(usedWords, id: \.self) { word in
@@ -94,6 +96,7 @@ struct ContentView: View {
             score += answer.count * 10
         }
         newWord = ""
+        isTextFieldFocused = true
     }
     
     func calculateMaxWords(from root: String) {
